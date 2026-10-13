@@ -30,7 +30,7 @@ export default function LoginGate() {
 
   return (
     <div className="login">
-      <h1>Papan Jobdesk</h1>
+      <h1>Jobdesk CS</h1>
       <p className="sub">Masukkan kode akses tim untuk membuka papan.</p>
       <form className="card" onSubmit={submit} noValidate>
         <div className="field">

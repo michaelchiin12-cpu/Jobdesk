@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Papan Jobdesk",
+  title: "Jobdesk CS",
   description: "Papan jobdesk tim realtime dengan peringatan sebelum tenggat.",
 };
 

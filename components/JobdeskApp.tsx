@@ -263,8 +263,8 @@ export default function JobdeskApp() {
       document.title = alerts.length
         ? Math.floor(now / 1000) % 2
           ? "(" + alerts.length + ") Perlu perhatian"
-          : "Papan Jobdesk"
-        : "Papan Jobdesk";
+          : "Jobdesk CS"
+        : "Jobdesk CS";
     } catch {
       /* abaikan */
     }
@@ -443,7 +443,7 @@ export default function JobdeskApp() {
     <div className="wrap">
       <header className="top">
         <div>
-          <h1>Papan Jobdesk</h1>
+          <h1>Jobdesk CS</h1>
           <p className="sub">{todayLong(now)}</p>
         </div>
         <div className="top-actions">

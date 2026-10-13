@@ -1,4 +1,4 @@
-# Papan Jobdesk
+# Jobdesk CS
 
 Papan jobdesk tim yang realtime di semua PC. Jobdesk yang belum dicentang memunculkan peringatan di semua layar 10 menit sebelum tenggat, lengkap dengan nama PIC. Anggota yang tidak masuk bisa ditandai agar jobdesk mereka dialihkan.
 
