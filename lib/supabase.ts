@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+/** Akun login bersama. Kode akses yang diketik pengguna adalah password akun ini. */
 export const TEAM_EMAIL = process.env.NEXT_PUBLIC_TEAM_EMAIL || "tim@jobdesk.example.com";
+export const LEAD_EMAIL = process.env.NEXT_PUBLIC_LEAD_EMAIL || "lead@jobdesk.example.com";
 
 export const isConfigured = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

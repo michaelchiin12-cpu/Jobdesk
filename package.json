@@ -5,18 +5,29 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --import tsx --test --test-force-exit tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test:pg": "bash tests/with-pg.sh node --import tsx --test --test-force-exit tests/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
     "next": "^16.4.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.9",
+    "@electric-sql/pglite-socket": "^0.2.12",
     "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/web-push": "^3.6.4",
+    "pg": "^8.23.1",
+    "playwright-core": "^1.64.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }
