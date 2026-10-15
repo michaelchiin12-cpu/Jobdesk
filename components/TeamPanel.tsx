@@ -1,110 +1,79 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { Member, Task } from "@/lib/types";
-import { dayKey } from "@/lib/time";
+import { useState } from "react";
+import { Avatar } from "./ui";
+import { useData } from "./DataProvider";
+import { useToast } from "./Toast";
+import * as api from "@/lib/api";
+import { MIN_SAMPLES, teamStats } from "@/lib/tasks";
 
-interface Props {
-  members: Member[];
-  tasks: Task[];
-  loaded: boolean;
-  now: number;
-  canWrite: boolean;
-  onAdd: (name: string) => Promise<boolean>;
-  onToggleAbsent: (m: Member) => void;
-  onRemove: (m: Member) => void;
-}
-
-export default function TeamPanel({ members, tasks, loaded, now, canWrite, onAdd, onToggleAbsent, onRemove }: Props) {
+export default function TeamPanel({ now, activePic, onPic }: { now: number; activePic: string; onPic: (name: string) => void }) {
+  const d = useData();
+  const toast = useToast();
   const [name, setName] = useState("");
-  const [rmId, setRmId] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const today = dayKey(now);
+  const [busy, setBusy] = useState(false);
+  const rows = teamStats(d.tasks, d.members, now);
 
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
-
-  const counts: Record<string, number> = {};
-  tasks.forEach((t) => {
-    if (!t.done) counts[t.pic] = (counts[t.pic] || 0) + 1;
-  });
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const n = name.trim();
-    if (!n) return;
-    if (await onAdd(n)) setName("");
+  async function add() {
+    if (!name.trim()) return;
+    setBusy(true);
+    const r = await api.addMember(name);
+    setBusy(false);
+    if (!r.ok) return toast(r.error, true);
+    setName("");
+    toast(`${r.data.name} ditambahkan ke tim.`);
+    void d.refresh();
   }
-
-  function remove(m: Member) {
-    if (rmId === m.id) {
-      setRmId(null);
-      onRemove(m);
-      return;
-    }
-    setRmId(m.id);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setRmId(null), 3500);
+  async function absent(id: string, value: boolean) {
+    const r = await api.setAbsent(id, value, now);
+    if (!r.ok) return toast(r.error, true);
+    void d.refresh();
+  }
+  async function remove(id: string, n: string) {
+    if (!confirm(`Hapus ${n} dari daftar PIC? Jobdesk lama tetap tersimpan.`)) return;
+    const r = await api.archiveMember(id);
+    if (!r.ok) return toast(r.error, true);
+    void d.refresh();
   }
 
   return (
-    <section className="card">
-      <h2 className="card-h">Tim hari ini</h2>
-      {!loaded ? (
-        <p className="hint">Memuat tim...</p>
-      ) : members.length === 0 ? (
-        <p className="hint">Belum ada anggota. Tambahkan nama setiap orang yang memegang jobdesk.</p>
-      ) : (
-        <>
-          <p className="hint">
-            Tandai &quot;Tidak masuk&quot; agar jobdesk orang itu ditandai dan bisa dialihkan. Tanda ini hilang otomatis besok.
-          </p>
-          <ul className="team">
-            {members.map((m) => {
-              const out = m.absent_on === today;
-              return (
-                <li key={m.id}>
-                  <span className={"tdot" + (out ? " out" : "")} />
-                  <span className="tname">
-                    {m.name} <span className="tcount">{counts[m.name] || 0} belum selesai</span>
-                  </span>
-                  <button
-                    type="button"
-                    className="switch"
-                    aria-pressed={out}
-                    disabled={!canWrite}
-                    onClick={() => onToggleAbsent(m)}
-                  >
-                    Tidak masuk
-                  </button>
-                  <button
-                    type="button"
-                    className={"btn small" + (rmId === m.id ? " danger" : "")}
-                    disabled={!canWrite}
-                    onClick={() => remove(m)}
-                  >
-                    {rmId === m.id ? "Yakin?" : "Hapus"}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+    <section className="panel" aria-label="Beban kerja tim">
+      <div className="panel-head"><h2>Tim hari ini</h2></div>
+      {rows.length === 0 && <p className="hint" style={{ color: "var(--faint)" }}>Belum ada anggota tim. Tambahkan anggota agar bisa dipilih sebagai PIC.</p>}
+      {rows.map((r) => {
+        const m = d.members.find((x) => x.name === r.name);
+        return (
+          <div className="member" key={r.name}>
+            <Avatar name={r.name} size={32} />
+            <div>
+              <div className="m-name">
+                <button className="t-title" onClick={() => onPic(activePic === r.name ? "all" : r.name)} aria-pressed={activePic === r.name} style={{ color: activePic === r.name ? "var(--teal)" : undefined }}>{r.name}</button>
+                {r.absent && <span className="tag">Tidak masuk</span>}
+              </div>
+              <div className="m-stats">
+                <span>{r.open} aktif</span>
+                <span>{r.inProgress} diproses</span>
+                <span className={r.late ? "bad" : ""}>{r.late} terlambat{r.highLate ? ` (${r.highLate} High)` : ""}</span>
+                <span>{r.doneToday} selesai hari ini</span>
+                <span>{r.onTimePct === null ? `Tepat waktu: butuh ${MIN_SAMPLES}+ data` : `Tepat waktu 7 hari: ${r.onTimePct}%`}</span>
+              </div>
+              {r.absent && r.open > 0 && <p className="hint" style={{ color: "var(--orange)", marginTop: 4 }}>{r.open} jobdesk belum selesai. Alihkan ke PIC lain.</p>}
+              {d.canManage && m && (
+                <div className="m-actions">
+                  <button className="btn sm ghost" onClick={() => absent(m.id, !r.absent)}>{r.absent ? "Tandai masuk" : "Tandai tidak masuk"}</button>
+                  <button className="btn sm ghost" onClick={() => remove(m.id, r.name)}>Hapus</button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {d.canManage && (
+        <form onSubmit={(e) => { e.preventDefault(); void add(); }} style={{ display: "flex", gap: 6, marginTop: 10 }}>
+          <input type="text" placeholder="Nama anggota baru" aria-label="Nama anggota baru" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
+          <button className="btn" type="submit" disabled={busy || !name.trim()}>Tambah</button>
+        </form>
       )}
-      <form className="team-form" onSubmit={submit} noValidate>
-        <input
-          type="text"
-          maxLength={40}
-          autoComplete="off"
-          placeholder="Nama anggota"
-          aria-label="Nama anggota baru"
-          value={name}
-          disabled={!canWrite}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <button className="btn" type="submit" disabled={!canWrite}>Tambah</button>
-      </form>
     </section>
   );
 }

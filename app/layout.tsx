@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import Shell from "@/components/Shell";
 
 export const metadata: Metadata = {
   title: "Jobdesk CS",
-  description: "Papan jobdesk tim realtime dengan peringatan sebelum tenggat.",
+  description: "Dasbor jobdesk tim CS: deadline, PIC, beban kerja, dan pengingat.",
 };
 
 export const viewport: Viewport = {
@@ -19,10 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         />
       </head>
-      <body>{children}</body>
+      <body><Shell>{children}</Shell></body>
     </html>
   );
 }
