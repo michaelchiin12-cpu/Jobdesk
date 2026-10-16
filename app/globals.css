@@ -318,3 +318,11 @@ td.num, th.num { text-align: right; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- jendela peringatan deadline ---------- */
+.big-alert { text-align: center; padding: 6px 0 2px; }
+.big-alert .big-time { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; color: var(--orange); }
+.big-alert.late .big-time { color: var(--red); }
+.big-alert .big-title { font-size: 20px; font-weight: 700; margin-top: 6px; overflow-wrap: anywhere; }
+.big-alert .big-pic { color: var(--muted); margin-top: 6px; font-size: 15px; }
+.big-alert .big-pic b { color: var(--text); }

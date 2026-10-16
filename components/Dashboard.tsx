@@ -7,44 +7,17 @@ import TaskDrawer from "./TaskDrawer";
 import LateReasonDialog from "./LateReasonDialog";
 import TeamPanel from "./TeamPanel";
 import ActivityPanel from "./ActivityPanel";
+import AlertCenter from "./AlertCenter";
 import { Avatar, DeadlineBadge, Empty, Modal, PriorityBadge } from "./ui";
 import { useNow } from "@/lib/now";
 import {
-  alertTasks, applyFilters, dashStats, DEFAULT_FILTERS, dueMs, groupTasks, isAbsentToday, matchesTab, memberNames,
+  applyFilters, dashStats, DEFAULT_FILTERS, dueMs, groupTasks, isAbsentToday, matchesTab, memberNames,
   TAB_LABEL, urgency, type Filters, type Tab,
 } from "@/lib/tasks";
 import * as api from "@/lib/api";
-import { fmtDateTime, mmss, relPast, relText } from "@/lib/tz";
+import { fmtDateTime, relPast } from "@/lib/tz";
 import type { Priority, Status, Task } from "@/lib/types";
 import { LATE_REASON_LABEL, PRIORITY_LABEL, STATUS_LABEL } from "@/lib/types";
-
-/* ---------- banner peringatan ---------- */
-function AlertBanner({ now, onDone }: { now: number; onDone: (t: Task) => void }) {
-  const d = useData();
-  const [snoozed, setSnoozed] = useState<Record<string, number>>({});
-  const list = alertTasks(d.tasks, now, snoozed);
-  if (!list.length) return null;
-  return (
-    <div className="alerts" role="region" aria-label="Peringatan deadline">
-      {list.slice(0, 4).map((t) => {
-        const diff = dueMs(t) - now;
-        return (
-          <div key={t.id} className={`alert${diff < 0 ? " late" : ""}`} role="alert">
-            <div className="a-main">
-              <b>{t.title}</b>
-              <span>PIC {t.pic}{isAbsentToday(d.members, t.pic, now) ? " (tidak masuk)" : ""} · {diff < 0 ? relText(diff) : `${mmss(diff)} lagi`}</span>
-            </div>
-            <div className="a-actions">
-              <button className="btn sm primary" onClick={() => onDone(t)}>Selesai</button>
-              <button className="btn sm" onClick={() => setSnoozed((s) => ({ ...s, [t.id]: now + 5 * 60000 }))}>Tunda 5 mnt</button>
-            </div>
-          </div>
-        );
-      })}
-      {list.length > 4 && <p className="hint" style={{ color: "var(--muted)" }}>+{list.length - 4} peringatan lain</p>}
-    </div>
-  );
-}
 
 /* ---------- baris jobdesk ---------- */
 function TaskRow({ t, now, onOpen, onStatus, onArchive, onLate }: {
@@ -184,7 +157,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <AlertBanner now={now} onDone={(t) => changeStatus(t, "done")} />
+      <AlertCenter now={now} onDone={(t) => changeStatus(t, "done")} onProgress={(t) => changeStatus(t, "in_progress")} />
       {d.loadError && (
         <div className="banner-err" role="alert">
           <span>{d.loadError} {d.loaded ? "Data di layar mungkin belum terbaru." : ""}</span>

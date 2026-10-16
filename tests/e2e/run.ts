@@ -37,9 +37,14 @@ async function main() {
     await new Promise((r) => setTimeout(r, 500));
   }
 
+  const taskIds = (await stack.db.query("select id from tasks")).rows.map((r) => r.id as string);
   const exe = readdirSync("/opt/pw-browsers").filter((d) => /^chromium-\d+$/.test(d)).sort().pop()!;
   const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN ?? `/opt/pw-browsers/${exe}/chrome-linux/chrome`, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, timezoneId: "America/New_York", acceptDownloads: true });
+  // Jendela peringatan memblokir layar; tunda semua jobdesk awal agar skenario lain tidak terhalang.
+  await ctx.addInitScript((ids: string[]) => {
+    if (localStorage.getItem("jobdesk.snooze") === null) localStorage.setItem("jobdesk.snooze", JSON.stringify(Object.fromEntries(ids.map((i) => [i, Date.now() + 6 * 3600e3]))));
+  }, taskIds);
   const page = await ctx.newPage();
   const consoleErrors: string[] = [];
   page.on("pageerror", (e) => consoleErrors.push(String(e)));
@@ -143,12 +148,28 @@ async function main() {
       await page.locator(".member", { hasText: "Budi" }).getByText(/Alihkan ke PIC lain/).waitFor();
     });
 
-    await step("banner peringatan muncul untuk jobdesk mendekati deadline, bisa ditunda", async () => {
-      const alert = page.locator(".alert", { hasText: "Rekap chat pelanggan" });
-      await alert.waitFor();
-      assert.match((await alert.textContent()) ?? "", /Budi/);
-      await alert.getByRole("button", { name: "Tunda 5 mnt" }).click();
-      await alert.waitFor({ state: "detached" });
+    await step("jendela peringatan: muncul dengan PIC, tunda 15 menit, lalu muncul lagi setelah tunda habis", async () => {
+      await page.evaluate(() => localStorage.removeItem("jobdesk.snooze"));
+      await page.reload();
+      const dlg = page.getByRole("dialog", { name: /Deadline/ });
+      await dlg.waitFor();
+      assert.match((await dlg.textContent()) ?? "", /Rekap chat pelanggan/);
+      assert.match((await dlg.textContent()) ?? "", /Budi/);
+      await dlg.getByRole("button", { name: "Tunda 15 menit" }).click();
+      await dlg.waitFor({ state: "detached" });
+      const snz = await page.evaluate(() => JSON.parse(localStorage.getItem("jobdesk.snooze") ?? "{}") as Record<string, number>);
+      const until = Object.values(snz)[0];
+      assert.ok(until - Date.now() > 14 * 60000 && until - Date.now() <= 15 * 60000, "tunda harus 15 menit");
+      // simulasikan tunda habis: peringatan kembali
+      await page.evaluate(() => localStorage.setItem("jobdesk.snooze", "{}"));
+      await page.reload();
+      await page.getByRole("dialog", { name: /Deadline/ }).waitFor();
+      await page.getByRole("button", { name: "Sudah selesai" }).click();
+      await page.getByRole("dialog", { name: /Deadline/ }).waitFor({ state: "detached" });
+      const r = await stack.db.query("select done from tasks where title = 'Rekap chat pelanggan'");
+      assert.equal(r.rows[0].done, true);
+      await page.evaluate((ids) => localStorage.setItem("jobdesk.snooze", JSON.stringify(Object.fromEntries(ids.map((i) => [i, Date.now() + 6 * 3600e3])))), taskIds);
+      await page.reload();
     });
 
     await step("jobdesk berulang dibuat sebagai template dan muncul di halaman Template", async () => {
