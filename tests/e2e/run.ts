@@ -149,7 +149,7 @@ async function main() {
     });
 
     await step("jendela peringatan: muncul dengan PIC, tunda 15 menit, lalu muncul lagi setelah tunda habis", async () => {
-      await page.evaluate(() => localStorage.removeItem("jobdesk.snooze"));
+      await page.evaluate(() => localStorage.setItem("jobdesk.snooze", "{}"));
       await page.reload();
       const dlg = page.getByRole("dialog", { name: /Deadline/ });
       await dlg.waitFor();
