@@ -54,6 +54,10 @@ export function useData(): Ctx {
 }
 
 const ME_KEY = "jobdesk.me";
+/** Mode tanpa layar login: aplikasi masuk otomatis memakai akun bersama. Kodenya ada di bundel publik, jadi
+ *  siapa pun yang tahu alamat situs bisa mengakses data. Aktif hanya bila NEXT_PUBLIC_OPEN_PASSWORD diisi. */
+export const OPEN_PASSWORD = process.env.NEXT_PUBLIC_OPEN_PASSWORD ?? "";
+export const OPEN_EMAIL = process.env.NEXT_PUBLIC_OPEN_EMAIL || process.env.NEXT_PUBLIC_TEAM_EMAIL || "tim@jobdesk.example.com";
 const POLL_MS = 30000;
 
 function upsertById<T extends { id: string | number }>(list: T[], row: T): T[] {
@@ -92,8 +96,13 @@ export default function DataProvider({ children }: { children: ReactNode }) {
       setReady(true);
       return;
     }
-    sb.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    sb.auth.getSession().then(async ({ data }) => {
+      let sess = data.session;
+      if (!sess && OPEN_PASSWORD) {
+        const r = await sb.auth.signInWithPassword({ email: OPEN_EMAIL, password: OPEN_PASSWORD });
+        sess = r.data.session;
+      }
+      setSession(sess);
       setReady(true);
     });
     const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSession(s));

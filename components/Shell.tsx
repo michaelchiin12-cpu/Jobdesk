@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import DataProvider, { useData } from "./DataProvider";
+import DataProvider, { OPEN_PASSWORD, useData } from "./DataProvider";
 import ToastProvider from "./Toast";
 import Login from "./Login";
 import NotificationCenter from "./NotificationCenter";
@@ -93,8 +93,7 @@ function Header() {
                 {names.map((n) => (
                   <button key={n} role="menuitem" onClick={() => { d.setMe(n); setMenu(false); }}>{d.me === n ? "✓ " : ""}{n}</button>
                 ))}
-                <hr />
-                <button role="menuitem" onClick={() => { setMenu(false); void d.signOut(); }}>Keluar</button>
+                {!OPEN_PASSWORD && <><hr /><button role="menuitem" onClick={() => { setMenu(false); void d.signOut(); }}>Keluar</button></>}
               </div>
             )}
           </div>
@@ -116,7 +115,7 @@ function Gate({ children }: { children: ReactNode }) {
         <div className="login-card">
           <h1>Akses belum aktif</h1>
           <p className="sub">{d.roleError}</p>
-          <button className="btn block" onClick={() => void d.signOut()}>Keluar</button>
+          {!OPEN_PASSWORD && <button className="btn block" onClick={() => void d.signOut()}>Keluar</button>}
         </div>
       </main>
     );
