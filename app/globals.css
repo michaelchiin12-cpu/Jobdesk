@@ -208,3 +208,24 @@ main { min-width: 0; }
   .alert { animation: slidein 0.25s ease-out; }
   @keyframes slidein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 }
+
+/* Rekap laporan harian untuk salin-tempel ke LINE. */
+.daily-reports { margin: 16px 0; }
+.daily-report-head, .daily-preview-head, .daily-report-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.daily-report-head .card-h { margin-bottom: 5px; }
+.daily-report-count, .daily-preview-head span, .daily-saved li span { color: var(--muted); font-size: 12px; }
+.daily-report-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.daily-reports select, .daily-reports input[type="date"] { width: 100%; }
+.daily-report-actions { justify-content: flex-start; margin-bottom: 12px; }
+.daily-report-message { color: var(--accent); font-size: 13px; margin: 8px 0; }
+.daily-preview { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.daily-preview-head { padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.daily-preview-head h3, .daily-saved h3 { margin: 0; font-size: 13px; }
+.daily-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: 12px; font: 14px/1.5 var(--body); }
+.daily-saved { margin-top: 16px; }
+.daily-saved h3 { margin-bottom: 8px; }
+.daily-saved ul { list-style: none; padding: 0; margin: 0; border: 1px solid var(--line); border-radius: 8px; }
+.daily-saved li { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.daily-saved li:first-child { border-top: 0; }
+.daily-saved li div { display: grid; flex: 1; gap: 2px; min-width: 100px; }
+@media (max-width: 640px) { .daily-report-fields { grid-template-columns: minmax(0, 1fr); gap: 0; } .daily-report-actions .btn { width: 100%; } }
