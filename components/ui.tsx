@@ -38,6 +38,10 @@ export function Modal({
   title, onClose, children, variant = "dialog", footer,
 }: { title: string; onClose: () => void; children: ReactNode; variant?: "dialog" | "drawer"; footer?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  // onClose sering berupa fungsi baru di tiap render (dasbor menggambar ulang tiap detik). Simpan di ref agar
+  // efek di bawah hanya jalan sekali; kalau tidak, fokus dikembalikan tiap detik dan dropdown PIC menutup sendiri.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const el = ref.current;
@@ -45,7 +49,7 @@ export function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       } else if (e.key === "Tab" && el) {
         const items = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)];
         if (!items.length) return;
@@ -67,9 +71,9 @@ export function Modal({
       document.body.style.overflow = "";
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, []);
   return (
-    <div className={`scrim ${variant}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`scrim ${variant}`} onMouseDown={(e) => e.target === e.currentTarget && closeRef.current()}>
       <div className={`modal ${variant}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>
         <header className="modal-head">
           <h2>{title}</h2>

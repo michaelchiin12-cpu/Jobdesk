@@ -91,6 +91,16 @@ async function main() {
       await page.waitForFunction(() => document.querySelectorAll(".task").length === 3);
     });
 
+    await step("laci tambah jobdesk: fokus di kolom PIC tidak dicuri saat dasbor menggambar ulang", async () => {
+      await page.getByRole("button", { name: /\+ Tambah jobdesk/ }).click();
+      await page.getByLabel("PIC", { exact: true }).focus();
+      await page.waitForTimeout(2600); // dasbor menggambar ulang tiap detik
+      const id = await page.evaluate(() => document.activeElement?.id);
+      assert.equal(id, "f-pic", `fokus pindah ke "${id}"`);
+      await page.keyboard.press("Escape");
+      await page.getByRole("dialog").waitFor({ state: "detached" });
+    });
+
     await step("tambah jobdesk lewat laci: validasi lalu tersimpan", async () => {
       await page.getByRole("button", { name: /\+ Tambah jobdesk/ }).click();
       await page.getByRole("button", { name: "Tambah jobdesk" }).last().click();
