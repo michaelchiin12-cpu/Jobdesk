@@ -130,6 +130,14 @@ export default function Dashboard() {
   const [lateFor, setLateFor] = useState<Task | null>(null);
   const [showArchive, setShowArchive] = useState(false);
   const [q, setQ] = useState("");
+  const [showDone, setShowDone] = useState(false);
+  useEffect(() => {
+    try { setShowDone(localStorage.getItem("jobdesk.showDone") === "1"); } catch { /* abaikan */ }
+  }, []);
+  const toggleDone = () => setShowDone((v) => {
+    try { localStorage.setItem("jobdesk.showDone", v ? "0" : "1"); } catch { /* abaikan */ }
+    return !v;
+  });
 
   useEffect(() => {
     const id = setTimeout(() => setF((x) => ({ ...x, search: q })), 200);
@@ -246,14 +254,24 @@ export default function Dashboard() {
                 action={d.canManage ? <button className="btn primary" onClick={() => setDrawer({ task: null })}>+ Tambah jobdesk</button> : undefined} />
             )
           ) : (
-            groups.map((g) => (
+            groups.map((g) => {
+              // Jobdesk selesai disembunyikan agar daftar fokus ke yang belum beres. Tab Selesai selalu menampilkannya.
+              const forced = f.tab === "done" || f.quick === "done_today";
+              const hidden = g.key === "done" && !forced && !showDone;
+              return (
               <section className="group" key={g.key} aria-label={g.label}>
-                <h2 className={`group-head ${g.key}`}>{g.label}<span className="count">{g.tasks.length}</span></h2>
-                <ul className="tasks" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                <h2 className={`group-head ${g.key}`}>
+                  {g.label}<span className="count">{g.tasks.length}</span>
+                  {g.key === "done" && !forced && (
+                    <button className="btn sm ghost" onClick={toggleDone} aria-expanded={!hidden}>{hidden ? "Tampilkan" : "Sembunyikan"}</button>
+                  )}
+                </h2>
+                {!hidden && <ul className="tasks" style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {g.tasks.map((t) => <TaskRow key={t.id} t={t} now={listNow} onOpen={(x) => setDrawer({ task: x })} onStatus={changeStatus} onArchive={archive} onLate={setLateFor} />)}
-                </ul>
+                </ul>}
               </section>
-            ))
+              );
+            })
           )}
         </main>
         <aside className="side">
