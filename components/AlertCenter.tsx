@@ -5,6 +5,7 @@ import { useData } from "./DataProvider";
 import { Modal } from "./ui";
 import { alertTasks, dueMs, isAbsentToday } from "@/lib/tasks";
 import { beep } from "@/lib/beep";
+import { showDesktopNotice } from "@/lib/desktop-notify";
 import { mmss, relText } from "@/lib/tz";
 import type { Task } from "@/lib/types";
 
@@ -43,6 +44,12 @@ export default function AlertCenter({ now, onDone, onProgress }: { now: number; 
     const t = Date.now();
     if (sound && (lastId.current !== firstId || t - lastBeep.current >= REPEAT_BEEP_MS)) {
       beep();
+      // Pojok layar sistem: tetap terlihat saat pengguna di tab atau aplikasi lain.
+      if (first) {
+        const late = dueMs(first) < t;
+        void showDesktopNotice(first.id, late ? `Terlambat: ${first.title}` : `Segera: ${first.title}`,
+          `PIC ${first.pic}. ${late ? "Sudah lewat deadline." : "Deadline sebentar lagi."} Buka Jobdesk CS untuk menandai selesai atau menunda.`);
+      }
       lastBeep.current = t;
     }
     lastId.current = firstId;

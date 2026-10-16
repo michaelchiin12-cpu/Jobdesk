@@ -226,6 +226,19 @@ async function main() {
       await page.locator(".task", { hasText: "Dari PC lain" }).waitFor({ timeout: 40000 });
     });
 
+    await step("notifikasi sistem muncul saat peringatan aktif (izin diberikan)", async () => {
+      await stack.db.query("insert into tasks (title, pic, due_at, updated_by) values ('Notif uji', 'Ani', now() - interval '2 minutes', 'seed')");
+      const c3 = await browser.newContext({ viewport: { width: 1200, height: 800 }, permissions: ["notifications"] });
+      const p3 = await c3.newPage();
+      await login(p3, "CS Lead", "kode-lead");
+      await p3.getByRole("dialog", { name: /Deadline terlewat/ }).waitFor({ timeout: 40000 });
+      await p3.waitForFunction(async () => {
+        const reg = await navigator.serviceWorker.getRegistration();
+        return !!reg && (await reg.getNotifications()).some((n) => n.title.includes("Notif uji"));
+      }, undefined, { timeout: 20000 });
+      await c3.close();
+    });
+
     await step("tata letak tanpa scroll horizontal di 1440, 768, dan 390", async () => {
       for (const w of [1440, 768, 390]) {
         await page.setViewportSize({ width: w, height: 900 });

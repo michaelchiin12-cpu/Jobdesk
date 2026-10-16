@@ -8,6 +8,7 @@ import LateReasonDialog from "./LateReasonDialog";
 import TeamPanel from "./TeamPanel";
 import ActivityPanel from "./ActivityPanel";
 import AlertCenter from "./AlertCenter";
+import { askNotifyPermission, notifyPermission } from "@/lib/desktop-notify";
 import { Avatar, DeadlineBadge, Empty, Modal, PriorityBadge } from "./ui";
 import { useNow } from "@/lib/now";
 import {
@@ -18,6 +19,22 @@ import * as api from "@/lib/api";
 import { fmtDateTime, relPast } from "@/lib/tz";
 import type { Priority, Status, Task } from "@/lib/types";
 import { LATE_REASON_LABEL, PRIORITY_LABEL, STATUS_LABEL } from "@/lib/types";
+
+/* ---------- ajakan mengaktifkan notifikasi sistem ---------- */
+function NotifyBar() {
+  const [perm, setPerm] = useState<ReturnType<typeof notifyPermission>>("granted");
+  useEffect(() => setPerm(notifyPermission()), []);
+  if (perm === "granted" || perm === "unsupported") return null;
+  if (perm === "denied") {
+    return <p className="banner-info" style={{ color: "var(--orange)", background: "var(--orange-bg)" }}>Notifikasi diblokir di browser ini, jadi pengingat tidak muncul saat Anda di tab lain. Klik ikon gembok di sebelah alamat situs, ubah Notifikasi menjadi Izinkan, lalu muat ulang.</p>;
+  }
+  return (
+    <div className="banner-info" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+      <span>Agar pengingat muncul juga saat Anda di tab atau aplikasi lain, izinkan notifikasi di PC ini.</span>
+      <button className="btn sm primary" onClick={async () => setPerm(await askNotifyPermission())}>Izinkan notifikasi</button>
+    </div>
+  );
+}
 
 /* ---------- baris jobdesk ---------- */
 function TaskRow({ t, now, onOpen, onStatus, onArchive, onLate }: {
@@ -157,6 +174,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <NotifyBar />
       <AlertCenter now={now} onDone={(t) => changeStatus(t, "done")} onProgress={(t) => changeStatus(t, "in_progress")} />
       {d.loadError && (
         <div className="banner-err" role="alert">
