@@ -9,6 +9,7 @@ import AlertBar from "./AlertBar";
 import AddForm from "./AddForm";
 import TeamPanel from "./TeamPanel";
 import TaskList from "./TaskList";
+import DailyWorkReports from "./DailyWorkReports";
 
 type Live = "connecting" | "ok" | "err";
 type Auth = "loading" | "in" | "out";
@@ -485,6 +486,8 @@ export default function JobdeskApp() {
         {stat("pend", pending, "Belum selesai")}
         {stat("done", doneToday, "Selesai hari ini")}
       </section>
+
+      <DailyWorkReports members={members} />
 
       <div className="layout">
         <aside>
