@@ -1,7 +1,7 @@
-// Tumpukan uji end-to-end lokal: PGlite (Postgres) + PostgREST asli + gerbang mirip Supabase (auth + REST).
+// Tumpukan uji end-to-end lokal: Postgres 16 sungguhan + PostgREST asli + gerbang mirip Supabase (auth + REST).
 // Realtime (websocket) sengaja tidak tersedia: aplikasi harus tetap bekerja lewat polling.
-import { PGlite } from "@electric-sql/pglite";
-import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
+import { Client } from "pg";
+import { PG_PORT, startPgServer } from "../helpers/pgserver";
 import { spawn, type ChildProcess } from "node:child_process";
 import crypto from "node:crypto";
 import http from "node:http";
@@ -21,8 +21,13 @@ export const ANON_KEY = signJwt({ role: "anon" }, 10 * 365 * 86400);
 const uid = (email: string) => crypto.createHash("md5").update(email).digest("hex").replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/, "$1-$2-$3-$4-$5");
 
 const BOOTSTRAP = `
-create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
-create role authenticator login noinherit; grant anon, authenticated, service_role to authenticator;
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticator') then create role authenticator login noinherit; end if;
+end $$;
+grant anon, authenticated, service_role to authenticator;
 create schema auth; create schema extensions;
 create function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
@@ -40,7 +45,8 @@ language sql as $$ insert into net.calls (url, body, headers) values (url, body,
 `;
 
 export interface Stack {
-  db: PGlite;
+  db: Client;
+  dbName: string;
   supabaseUrl: string;
   accounts: Record<string, string>;
   stop(): Promise<void>;
@@ -56,32 +62,34 @@ async function waitFor(fn: () => Promise<boolean>, what: string, ms = 30000): Pr
 }
 
 export async function startStack(opts: { pgPort?: number; restPort?: number; gatewayPort?: number; accounts: Record<string, string> }): Promise<Stack> {
-  const pgPort = opts.pgPort ?? 54320;
-  const restPort = opts.restPort ?? 54322;
+    const restPort = opts.restPort ?? 54322;
   const gwPort = opts.gatewayPort ?? 54321;
 
-  const db = new PGlite();
-  await db.exec(BOOTSTRAP);
-  await db.exec(newSchemaSql());
-
-  const socket = new PGLiteSocketServer({ db, port: pgPort, host: "127.0.0.1", maxConnections: 1 });
-  await socket.start();
+  startPgServer();
+  const dbName = "e2e_" + crypto.randomBytes(4).toString("hex");
+  const admin = new Client({ host: "127.0.0.1", port: PG_PORT, user: "postgres", database: "postgres" });
+  await admin.connect();
+  await admin.query(`create database "${dbName}"`);
+  await admin.end();
+  const db = new Client({ host: "127.0.0.1", port: PG_PORT, user: "postgres", database: dbName });
+  await db.connect();
+  await db.query(BOOTSTRAP);
+  await db.query(newSchemaSql());
 
   let logs = "";
   const pgrst: ChildProcess = spawn(PGRST_BIN, [], {
     env: {
-      PGRST_DB_URI: `postgres://authenticator@127.0.0.1:${pgPort}/postgres?sslmode=disable`,
+      PGRST_DB_URI: `postgres://authenticator@127.0.0.1:${PG_PORT}/${dbName}?sslmode=disable`,
       PGRST_DB_SCHEMAS: "public",
       PGRST_DB_ANON_ROLE: "anon",
       PGRST_JWT_SECRET: JWT_SECRET,
       PGRST_SERVER_HOST: "127.0.0.1",
       PGRST_SERVER_PORT: String(restPort),
-      PGRST_DB_POOL: "1",
+      PGRST_DB_POOL: "5",
       PGRST_DB_CHANNEL_ENABLED: "false",
-      PGRST_DB_PREPARED_STATEMENTS: "false",
       PGRST_LOG_LEVEL: process.env.PGRST_LOG_LEVEL ?? "warn",
       PATH: process.env.PATH ?? "",
-    },
+    } as unknown as NodeJS.ProcessEnv,
     stdio: ["ignore", "pipe", "pipe"],
   });
   pgrst.stdout?.on("data", (d) => { logs += d; if (process.env.E2E_DEBUG) process.stderr.write(d); });
@@ -169,13 +177,17 @@ export async function startStack(opts: { pgPort?: number; restPort?: number; gat
 
   return {
     db,
+    dbName,
     supabaseUrl: `http://127.0.0.1:${gwPort}`,
     accounts: opts.accounts,
     async stop() {
       gateway.close();
       pgrst.kill("SIGTERM");
-      await socket.stop().catch(() => undefined);
-      await db.close().catch(() => undefined);
+      await db.end().catch(() => undefined);
+      const a = new Client({ host: "127.0.0.1", port: PG_PORT, user: "postgres", database: "postgres" });
+      await a.connect().catch(() => undefined);
+      await a.query(`drop database if exists "${dbName}" with (force)`).catch(() => undefined);
+      await a.end().catch(() => undefined);
     },
   };
 }

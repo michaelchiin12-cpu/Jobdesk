@@ -1,40 +1,61 @@
 # Jobdesk CS
 
-Papan jobdesk tim yang realtime di semua PC. Jobdesk yang belum dicentang memunculkan peringatan di semua layar 10 menit sebelum tenggat, lengkap dengan nama PIC. Anggota yang tidak masuk bisa ditandai agar jobdesk mereka dialihkan.
+Dasbor kerja untuk CS Lead dan tim CS: jobdesk, PIC, deadline, status, beban kerja per orang, riwayat perubahan, pengingat, jobdesk berulang, dan laporan. Data realtime di semua PC.
 
-Teknologi: Next.js (App Router), Supabase (database + realtime + auth), deploy di Vercel.
+Teknologi: Next.js 16 (App Router), React 19, Supabase (Postgres, Realtime, Auth, pg_cron), Web Push, deploy di Vercel.
 
-## Cara kerja akses
+## Peran
 
-Seluruh tim memakai satu kode akses. Kode itu adalah password dari satu akun bersama di Supabase Auth. Data hanya bisa dibaca dan ditulis oleh akun itu (aturan RLS di `supabase/schema.sql`).
+| Peran | Bisa |
+| --- | --- |
+| **CS Lead** (`lead@jobdesk.example.com`) | Semuanya: buat/ubah/arsipkan jobdesk, kelola tim dan template, pengaturan, laporan, arsip |
+| **Tim CS** (`tim@jobdesk.example.com`) | Melihat semua, mengubah status, mencatat alasan terlambat. Bisa diperluas lewat pengaturan "Tim CS boleh membuat dan mengubah jobdesk" |
 
-## Pengaturan Supabase (sekali saja)
+Peran ditegakkan di database (RLS + trigger), bukan hanya disembunyikan di tampilan. Tidak ada hard delete: jobdesk diarsipkan dan bisa dipulihkan.
 
-1. Buka Supabase > SQL Editor, tempel seluruh isi `supabase/schema.sql`, lalu Run.
-2. Buka Authentication > Users > Add user > Create new user.
-   - Email: `tim@jobdesk.example.com` (harus sama dengan `NEXT_PUBLIC_TEAM_EMAIL` dan dengan email di `schema.sql`)
-   - Password: kode akses tim yang Anda pilih
-   - Centang **Auto Confirm User**
-3. Buka Authentication > Sign In / Providers, lalu matikan **Allow new users to sign up** dan **Allow anonymous sign-ins**.
+## Pengaturan Supabase
+
+Urutan penting karena skema membaca akun yang sudah ada.
+
+1. **Authentication > Users > Add user**, centang Auto Confirm:
+   - `tim@jobdesk.example.com`, password = kode akses tim (sudah ada bila Anda memakai versi lama)
+   - `lead@jobdesk.example.com`, password = kode akses CS Lead
+2. **Authentication > Sign In / Providers**: matikan *Allow new users to sign up* dan *Allow anonymous sign-ins*.
+3. **Database > Extensions**: aktifkan `pg_cron` dan `pg_net` (diperlukan penjadwal pengingat dan push).
+4. **SQL Editor**: tempel seluruh `supabase/schema.sql`, Run. Aman dijalankan ulang dan tidak menghapus data lama.
+
+Setelah migrasi, akun `tim@` berperan CS (tidak bisa membuat jobdesk). Aktifkan "Tim CS boleh membuat dan mengubah jobdesk" di Pengaturan bila itu yang Anda inginkan.
+
+## Notifikasi saat tab ditutup (Web Push)
+
+1. `npx web-push generate-vapid-keys`, lalu isi `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, dan buat `PUSH_SECRET` acak (panjang) di Vercel. Deploy ulang.
+2. Di Supabase SQL Editor, beri tahu database ke mana mengirim:
+   ```sql
+   insert into app_private.settings (key, value) values
+     ('push_url', 'https://DOMAIN-ANDA/api/push'),
+     ('push_secret', 'ISI_SAMA_DENGAN_PUSH_SECRET')
+   on conflict (key) do update set value = excluded.value;
+   ```
+3. Tiap PC: buka Pengaturan > Aktifkan notifikasi > Kirim notifikasi uji.
+
+Status "Diterima layanan push" di Notifikasi hanya muncul setelah layanan push benar-benar menjawab sukses. Bila belum dikonfigurasi, statusnya jujur ditampilkan sebagai "belum dikonfigurasi". Pengingat tetap tampil sebagai banner di dasbor yang terbuka.
 
 ## Environment variables
 
-| Nama | Isi |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Project URL Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon (publik) key Supabase |
-| `NEXT_PUBLIC_TEAM_EMAIL` | Email akun bersama (opsional, bawaan `tim@jobdesk.example.com`) |
+Lihat `.env.example`. Jangan pernah memakai service role key.
 
-Jangan memakai service role key di proyek ini.
-
-## Menjalankan lokal
+## Pengembangan dan tes
 
 ```bash
 npm install
-cp .env.example .env.local   # isi nilainya
+cp .env.example .env.local
 npm run dev
+npm run typecheck
+npm test            # database di PGlite + logika
+npm run test:pg     # database di PostgreSQL 16 sungguhan (perlu postgresql-16 terpasang)
+node --import tsx tests/e2e/run.ts   # skenario browser (perlu Chromium dan biner PostgREST)
 ```
 
-## Deploy
+Semua tanggal dan jam memakai Asia/Jakarta (WIB), apa pun zona waktu browser.
 
-Hubungkan repo ke Vercel, isi environment variables di atas, lalu deploy. Setiap push ke branch utama otomatis ter-deploy.
+Dokumen: `docs/AUDIT.md` (audit awal), `docs/LAPORAN_UPGRADE.md` (laporan upgrade).

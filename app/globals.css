@@ -298,7 +298,7 @@ td.num, th.num { text-align: right; }
 
 /* ---------- responsif ---------- */
 @media (max-width: 1100px) {
-  .layout { grid-template-columns: 1fr; }
+  .layout { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 720px) {
